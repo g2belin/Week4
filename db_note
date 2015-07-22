@@ -1,0 +1,21 @@
+Smelly=Pet.find(1)
+Smelly.name
+
+smely=Pet.find_by(name: "Smelly Nice")
+
+This is actually passing a hash
+smely=Pet.find_by({name: "Smelly Nice"})
+
+Pet.where(genus: "Dog")
+
+Pet.create(genus: "Dog", name: "Lassie")
+
+list=Pet.where(genus: "Dog").size
+
+The result is in a hash/array
+
+list[0].name
+list[1].id
+
+
+ 

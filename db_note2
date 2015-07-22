@@ -1,0 +1,156 @@
+create a 2_add_gender.rb in migrate folder
+
+with below content
+
+
+class AddGender < ActiveRecord::Migration
+
+  def change
+    change_table :user_profile do |t|
+      t.string :gender
+    end
+  end
+end
+
+
+do db_migrate in terminal
+
+
+then look at schema.rb file to see the change is applied
+
+
+
+ONce tables are created.
+
+create class file for each table (use singular term as the file name)
+such as llama.rb uner the app\model folder
+
+class Llama < ActiveRecord::Base
+
+end
+
+
+create a new migration file to add relationship table
+
+class AddRelationships < ActiveRecord::Migration
+
+  def change
+    change_table :garments do |t|
+      t.reference :llama
+    end
+
+    change_table :llamas do |t|
+      t.reference :user
+    end
+
+  end
+end
+
+the relationship is:
+garments belongs to llama
+llamas belongs to user
+
+then run migration
+
+the app\model folder file will have created a llama_id and user_id of integer type
+
+
+inside individual class, we state the relationship
+
+has_many :
+belong_to :
+
+class Llama < ActiveRecord::Base
+  has_many  :garments
+  belongs_to :user
+end
+
+
+class User < ActiveRecord::Base
+  has_many :llamas
+end
+
+
+
+
+once all tables are done
+
+type in terminal 
+bundle exec tux -r "./config/environment.rb"
+
+or 
+
+tux -r "./config/environment.rb"
+
+
+type the class name, User
+then you will see the table's field and type detail
+
+to create data,  you type class name, .create()
+
+User.create({name:"Farmer Leigh", email:"Leigh@gmail.com", password: "llamas123"})
+
+User.create({name:"Farmer Joe", email:"Joe@gmail.com", password: "joe123"})
+
+user= User.find_by(email:"leigh@gmail.com")
+
+user.name
+display the user's name field data
+
+user.llamas
+
+user.llamas.count
+
+user.llamas.create({name: "Spitty", age: 5, quality:"High", gender:"Male"})
+
+user.llamas will return the list of array of the llamas
+
+user.llamas.first.name will return the name of the first llama in the list
+
+
+user.llamas.first.garments.count
+
+spitty = Llama.find(1)
+spitty.user.name
+
+pass a string when we are comparing data
+Calls.where("num>2")
+
+pass a hash when you want to find an exact match
+Calls.where (num:2, from:"canada",date:"2015-03-01")
+
+Calls.where ({gender: "Male"})
+
+
+----
+can use 
+rake::rollback
+rake db:migrate
+
+to redo tables
+
+or save a new migration file, and do delete table, update table contents etc
+
+
+-----
+has_one
+
+or do 
+
+A belongs_to B
+B belongs_to A
+
+
+-----
+user1=find(1)
+user1.password = "omgpassword"
+user1.save
+
+
+user.destroy 
+will remove the record
+
+-----
+
+ruby warrior site
+

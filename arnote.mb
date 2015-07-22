@@ -1,0 +1,230 @@
+## ActiveRecord Validations
+
+Guide: http://guides.rubyonrails.org/active_record_validations.html
+
+### Built-in Validations
+
+ActiveRecord comes with a number of useful built-in validations.
+
+Let's say that in our dogs table we want to ensure that dog names are at least three letters long. We also want to say that a dogs name should never be left blank. We can accomplish this using built-in validations.
+
+```ruby
+class Dog < ActiveRecord::Base
+  # validates_presence_of :name  # older style syntax
+  validates :name, presence: true, length: {minimum: 3}
+end
+```
+
+You can see a list of all built-in validations here: http://guides.rubyonrails.org/active_record_validations.html#validation-helpers
+
+### Working with validation errors
+
+If we try to create a dog without a name, ActiveRecord triggers a ROLLBACK and nothing is saved to the database.
+
+We can take a look at the `errors` object to find out which validations failed.
+
+```
+> Dog
+ => Dog(id: integer, name: string, rescue_year: integer, breed_id: integer, created_at: datetime, updated_at: datetime)
+> dog = Dog.create(rescue_year: 2014)
+D, [2015-06-10T15:21:06.536581 #92176] DEBUG -- :    (0.2ms)  BEGIN
+D, [2015-06-10T15:21:06.559251 #92176] DEBUG -- :    (0.3ms)  ROLLBACK
+ => #<Dog id: nil, name: nil, rescue_year: 2014, breed_id: nil, created_at: nil, updated_at: nil>
+> dog.errors
+ => #<ActiveModel::Errors:0x0000010209b908 @base=#<Dog id: nil, name: nil, rescue_year: 2014, breed_id: nil, created_at: nil, updated_at: nil>, @messages={:name=>["can't be blank", "is too short (minimum is 3 characters)"]}>
+> dog.errors.messages
+ => {:name=>["can't be blank", "is too short (minimum is 3 characters)"]}
+
+> dog.errors.full_messages
+ => ["Name can't be blank", "Name is too short (minimum is 3 characters)"]
+```
+
+### Custom Validations
+
+Let's say the dog shelter came up with a rule that  dogs should be named with a specific letter, based on the year they were rescued.
+
+Because this validation requires checking two fields, we need to use a custom validation. We'll call it `name_starts_with_correct_letter`.
+
+```ruby
+class Dog < ActiveRecord::Base
+  # validate that the name is correct based on the rescue year
+  LETTER_FOR_YEAR = {"2015" => "M", "2014" => "B", "2013" => "J"}
+
+  private
+
+  def self.letter_for_year(year)
+    LETTER_FOR_YEAR[year]
+  end
+
+  def incorrect_name_for_year?
+    rescue_year > 2012 && !name.starts_with?(Dog.letter_for_year(rescue_year))
+  end
+
+  def name_starts_with_correct_letter
+    puts "VALIDATING NAME LETTER"
+    if incorrect_name_for_year?
+      errors.add(:name, "must start with #{Dog.letter_for_year(rescue_year)}")
+    end
+  end
+end
+```
+
+You can read more about custom validations here: http://guides.rubyonrails.org/active_record_validations.html#custom-methods
+
+
+
+## ActiveRecord Associations
+
+Guide: http://guides.rubyonrails.org/association_basics.html#the-has-many-association
+Reference: http://api.rubyonrails.org/classes/ActiveRecord/Associations/ClassMethods.html
+
+### One to One
+
+users table, addresses table
+
+Each user has one address. We want to store that address in a separate table called `addresses`.
+
+```ruby
+class User < ActiveRecord::Base
+  has_one :address
+end
+```
+
+```ruby
+class Address < ActiveRecord::Base
+  belongs_to :user  # requires a user_id column in addresses table
+end
+```
+
+
+### One to Many
+
+
+dogs table, breeds table
+
+```ruby
+class Dog < ActiveRecord::Base
+  belongs_to :breed   # requires breed_id column in dogs table
+end
+```
+
+```ruby
+class Breed < ActiveRecord::Base
+  has_many :dogs
+end
+```
+
+### Many to Many
+
+
+students table, courses table, course_registrations table
+
+```ruby
+class Student < ActiveRecord::Base
+  has_many :courses, through: :course_registrations
+end
+```
+
+```ruby
+class Course < ActiveRecord::Base
+  has_many :students, through: :course_registrations
+end
+```
+
+```ruby
+class CourseRegistration < ActiveRecord::Base
+  belongs_to :course     # requires course_id column in course_registrations table
+  belongs_to :student    # requires student_id column in course_registrations table
+end
+```
+
+
+### Example
+
+In the dogs and breeds example we have a setup that looks like this
+
+
+dogs table, breeds table
+
+```ruby
+class Dog < ActiveRecord::Base
+  belongs_to :breed   # requires breed_id column in dogs table
+end
+```
+
+```ruby
+class Breed < ActiveRecord::Base
+  has_many :dogs
+end
+```
+
+Let's create a few breeds:
+
+```
+> Breed.create(name: "Dalmatian")
+    D, [2015-06-10T16:10:19.127872 #92395] DEBUG -- :    (0.4ms)  BEGIN
+    D, [2015-06-10T16:10:19.138501 #92395] DEBUG -- :   SQL (2.5ms)  INSERT INTO "breeds" ("name", "created_at", "updated_at") VALUES ($1, $2, $3) RETURNING "id"  [["name", "Dalmatian"], ["created_at", "2015-06-10 23:10:19.131685"], ["updated_at", "2015-06-10 23:10:19.131685"]]
+    D, [2015-06-10T16:10:19.145666 #92395] DEBUG -- :    (6.4ms)  COMMIT
+ => #<Breed id: 1, store_id: nil, name: "Dalmatian", created_at: "2015-06-10 23:10:19", updated_at: "2015-06-10 23:10:19">
+> Breed.create(name: "Labrador")
+    D, [2015-06-10T16:10:26.325308 #92395] DEBUG -- :    (0.3ms)  BEGIN
+    D, [2015-06-10T16:10:26.326849 #92395] DEBUG -- :   SQL (0.4ms)  INSERT INTO "breeds" ("name", "created_at", "updated_at") VALUES ($1, $2, $3) RETURNING "id"  [["name", "Labrador"], ["created_at", "2015-06-10 23:10:26.325631"], ["updated_at", "2015-06-10 23:10:26.325631"]]
+    D, [2015-06-10T16:10:26.334296 #92395] DEBUG -- :    (6.8ms)  COMMIT
+ => #<Breed id: 2, store_id: nil, name: "Labrador", created_at: "2015-06-10 23:10:26", updated_at: "2015-06-10 23:10:26">
+> Breed.create(name: "Beagle")
+    D, [2015-06-10T16:11:26.360596 #92395] DEBUG -- :    (0.3ms)  BEGIN
+    D, [2015-06-10T16:11:26.362081 #92395] DEBUG -- :   SQL (0.4ms)  INSERT INTO "breeds" ("name", "created_at", "updated_at") VALUES ($1, $2, $3) RETURNING "id"  [["name", "Beagle"], ["created_at", "2015-06-10 23:11:26.360919"], ["updated_at", "2015-06-10 23:11:26.360919"]]
+    D, [2015-06-10T16:11:26.369729 #92395] DEBUG -- :    (7.0ms)  COMMIT
+ => #<Breed id: 3, store_id: nil, name: "Beagle", created_at: "2015-06-10 23:11:26", updated_at: "2015-06-10 23:11:26">
+```
+
+Let's say we want to create a dog called snoopy. Notice that snoopy's breed_id is nil.
+
+```
+> snoopy = Dog.create(name: "Snoopy", rescue_year: 2009)
+    D, [2015-06-10T16:11:58.576793 #92395] DEBUG -- :    (0.3ms)  BEGIN
+    VALIDATING NAME LETTER
+    D, [2015-06-10T16:11:58.578924 #92395] DEBUG -- :   SQL (0.4ms)  INSERT INTO "dogs" ("name", "rescue_year", "created_at", "updated_at") VALUES ($1, $2, $3, $4) RETURNING "id"  [["name", "Snoopy"], ["rescue_year", 2009], ["created_at", "2015-06-10 23:11:58.577413"], ["updated_at", "2015-06-10 23:11:58.577413"]]
+    D, [2015-06-10T16:11:58.579912 #92395] DEBUG -- :    (0.5ms)  COMMIT
+ => #<Dog id: 6, name: "Snoopy", rescue_year: 2009, breed_id: nil, created_at: "2015-06-10 23:11:58", updated_at: "2015-06-10 23:11:58">
+```
+
+Let's say we want to create a dog called Snoopy the Second and record the fact that he is a beagle.
+
+```
+> snoopy = Dog.create(name: "Snoopy the Second", rescue_year: 2009, breed: Breed.find_by_name("Beagle"))
+  D, [2015-06-10T16:12:57.804803 #92395] DEBUG -- :   Breed Load (6.6ms)  SELECT  "breeds".* FROM "breeds" WHERE "breeds"."name" = $1 LIMIT 1  [["name", "Beagle"]]
+  D, [2015-06-10T16:12:57.811875 #92395] DEBUG -- :    (0.2ms)  BEGIN
+  VALIDATING NAME LETTER
+  D, [2015-06-10T16:12:57.813768 #92395] DEBUG -- :   SQL (0.3ms)  INSERT INTO "dogs" ("name", "rescue_year", "breed_id", "created_at", "updated_at") VALUES ($1, $2, $3, $4, $5) RETURNING "id"  [["name", "Snoopy the Second"], ["rescue_year", 2009], ["breed_id", 3], ["created_at", "2015-06-10 23:12:57.812459"], ["updated_at", "2015-06-10 23:12:57.812459"]]
+  D, [2015-06-10T16:12:57.820198 #92395] DEBUG -- :    (5.9ms)  COMMIT
+   => #<Dog id: 7, name: "Snoopy the Second", rescue_year: 2009, breed_id: 3, created_at: "2015-06-10 23:12:57", updated_at: "2015-06-10 23:12:57">
+> Dog.last
+  D, [2015-06-10T16:13:11.003486 #92395] DEBUG -- :   Dog Load (0.7ms)  SELECT  "dogs".* FROM "dogs"  ORDER BY "dogs"."id" DESC LIMIT 1
+   => #<Dog id: 7, name: "Snoopy the Second", rescue_year: 2009, breed_id: 3, created_at: "2015-06-10 23:12:57", updated_at: "2015-06-10 23:12:57">
+```
+
+If I want to assign a dog to a breed after the dog was created I can use the `.push` method on AR associations.
+
+See http://api.rubyonrails.org/classes/ActiveRecord/Associations/ClassMethods.html for a list of methods you can call on AR associations.
+
+```
+> snoopy = Dog.find(6)
+    D, [2015-06-10T16:13:44.925377 #92395] DEBUG -- :   Dog Load (0.4ms)  SELECT  "dogs".* FROM "dogs" WHERE "dogs"."id" = $1 LIMIT 1  [["id", 6]]
+   => #<Dog id: 6, name: "Snoopy", rescue_year: 2009, breed_id: nil, created_at: "2015-06-10 23:11:58", updated_at: "2015-06-10 23:11:58">
+> beagle = Breed.find_by_name("Beagle")
+    D, [2015-06-10T16:14:30.714939 #92395] DEBUG -- :   Breed Load (0.5ms)  SELECT  "breeds".* FROM "breeds" WHERE "breeds"."name" = $1 LIMIT 1  [["name", "Beagle"]]
+ => #<Breed id: 3, store_id: nil, name: "Beagle", created_at: "2015-06-10 23:11:26", updated_at: "2015-06-10 23:11:26">
+> beagle.dogs
+    D, [2015-06-10T16:14:35.610797 #92395] DEBUG -- :   Dog Load (0.3ms)  SELECT "dogs".* FROM "dogs" WHERE "dogs"."breed_id" = $1  [["breed_id", 3]]
+ => #<ActiveRecord::Associations::CollectionProxy [#<Dog id: 7, name: "Snoopy the Second", rescue_year: 2009, breed_id: 3, created_at: "2015-06-10 23:12:57", updated_at: "2015-06-10 23:12:57">]>
+> beagle.dogs.push(snoopy)
+    D, [2015-06-10T16:16:56.539126 #92395] DEBUG -- :    (0.3ms)  BEGIN
+    VALIDATING NAME LETTER
+    D, [2015-06-10T16:16:56.541628 #92395] DEBUG -- :   SQL (0.3ms)  UPDATE "dogs" SET "breed_id" = $1, "updated_at" = $2 WHERE "dogs"."id" = $3  [["breed_id", 3], ["updated_at", "2015-06-10 23:16:56.539911"], ["id", 6]]
+    D, [2015-06-10T16:16:56.548720 #92395] DEBUG -- :    (6.6ms)  COMMIT
+ => #<ActiveRecord::Associations::CollectionProxy [#<Dog id: 7, name: "Snoopy the Second", rescue_year: 2009, breed_id: 3, created_at: "2015-06-10 23:12:57", updated_at: "2015-06-10 23:12:57">, #<Dog id: 6, name: "Snoopy", rescue_year: 2009, breed_id: 3, created_at: "2015-06-10 23:11:58", updated_at: "2015-06-10 23:16:56">]>
+> beagle.dogs
+ => #<ActiveRecord::Associations::CollectionProxy [#<Dog id: 7, name: "Snoopy the Second", rescue_year: 2009, breed_id: 3, created_at: "2015-06-10 23:12:57", updated_at: "2015-06-10 23:12:57">, #<Dog id: 6, name: "Snoopy", rescue_year: 2009, breed_id: 3, created_at: "2015-06-10 23:11:58", updated_at: "2015-06-10 23:16:56">]>
+```
+
